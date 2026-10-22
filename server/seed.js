@@ -12,15 +12,24 @@ const Grievance = require('./models/Grievance');
 const UnassessedParcel = require('./models/UnassessedParcel');
 const Notification = require('./models/Notification');
 const { calculatePropertyTax } = require('./services/taxEngine');
+const { getMongoUri } = require('./config/db');
 
 const seedData = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/property_tax_portal');
+    await mongoose.connect(getMongoUri(), { dbName: process.env.MONGODB_DB || 'property_tax_portal' });
     console.log('Connected to MongoDB for Seeding...');
 
-    // Drop database to reset indexes and clean collections
-    await mongoose.connection.db.dropDatabase();
-    console.log('Database dropped and reset with fresh indexes.');
+    // Atlas users often lack dropDatabase permission, so drop each collection instead
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    for (const { name } of collections) {
+      await mongoose.connection.db.dropCollection(name);
+    }
+    await Promise.all(
+      [User, Property, Assessment, Payment, Grievance, UnassessedParcel, Notification].map((Model) =>
+        Model.syncIndexes()
+      )
+    );
+    console.log('Collections reset with fresh indexes.');
 
     // 1. Create Users
     const admin = await User.create({

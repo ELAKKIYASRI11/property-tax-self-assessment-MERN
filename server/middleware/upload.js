@@ -3,7 +3,10 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../uploads');
+// Vercel functions only allow writes to /tmp (ephemeral)
+const uploadDir = process.env.VERCEL
+  ? path.join('/tmp', 'uploads')
+  : path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -37,3 +40,4 @@ const upload = multer({
 });
 
 module.exports = upload;
+module.exports.uploadDir = uploadDir;
